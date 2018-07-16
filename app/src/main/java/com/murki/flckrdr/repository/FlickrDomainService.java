@@ -1,77 +1,150 @@
 package com.murki.flckrdr.repository;
 
 import android.content.Context;
-import android.util.Log;
 
-import com.fernandocejas.frodo.annotation.RxLogObservable;
-import com.murki.flckrdr.ITimestampedView;
+import com.murki.flckrdr.model.FlickrPhoto;
 import com.murki.flckrdr.model.RecentPhotosResponse;
-import com.murki.flckrdr.viewmodel.FlickrModelToVmMapping;
-import com.murki.flckrdr.viewmodel.FlickrCardVM;
+
+import org.reactivestreams.Publisher;
 
 import java.util.List;
 
-import rx.Observable;
-import rx.functions.Action1;
-import rx.functions.Func1;
-import rx.schedulers.Schedulers;
-import rx.schedulers.Timestamped;
+import io.reactivex.BackpressureStrategy;
+import io.reactivex.Flowable;
+import io.reactivex.Maybe;
+import io.reactivex.MaybeEmitter;
+import io.reactivex.MaybeOnSubscribe;
+import io.reactivex.MaybeSource;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
+import io.reactivex.ObservableSource;
+import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
+import io.reactivex.schedulers.Schedulers;
+
 
 public class FlickrDomainService {
 
     private static final String CLASSNAME = FlickrDomainService.class.getCanonicalName();
 
-    private final FlickrNetworkRepository flickrNetworkRepository;
-    private final FlickrDiskRepository flickrDiskRepository;
+    private FlickrNetworkRepository flickrNetworkRepository = null;
+    private final MyDatabase myDatabase;
+    private final FlickrRoomRepo flickrRoomRepo;
 
     public FlickrDomainService(Context context) {
         flickrNetworkRepository = new FlickrNetworkRepository(); // TODO: Inject Singleton
-        flickrDiskRepository = new FlickrDiskRepository(context); // TODO: Inject Singleton
+        myDatabase = MyDatabase.instance(context);
+        flickrRoomRepo = myDatabase.flickrDao();
     }
 
-    @RxLogObservable
-    public Observable<Timestamped<List<FlickrCardVM>>> getRecentPhotos(ITimestampedView timestampedView) {
-        return getMergedPhotos()
-                .filter(getRecentPhotosFilter(timestampedView))
-                .map(FlickrModelToVmMapping.instance());
+
+    public Flowable<List<FlickrPhoto>> getFlickerPhotos() {
+        return getMergedFloFlickrPhotos();
     }
 
-    @RxLogObservable
-    private Observable<Timestamped<RecentPhotosResponse>> getMergedPhotos() {
-        return Observable.mergeDelayError(
-                flickrDiskRepository.getRecentPhotos().subscribeOn(Schedulers.io()),
-                flickrNetworkRepository.getRecentPhotos().timestamp().doOnNext(new Action1<Timestamped<RecentPhotosResponse>>() {
+    public Maybe<List<FlickrPhoto>> getAll() {
+        return getMergedMayBePhotos();
+    }
+
+    public Flowable<List<FlickrPhoto>> getFlickFromNetwork() {
+        return flickrNetworkRepository.getRecentFlowPhotos().concatMap(new Function<RecentPhotosResponse, Publisher<? extends List<FlickrPhoto>>>() {
+            @Override
+            public Publisher<? extends List<FlickrPhoto>> apply(RecentPhotosResponse recentPhotosResponse) throws Exception {
+                List<FlickrPhoto> flickrPhotos = recentPhotosResponse.photos.photo;
+                Flowable<List<FlickrPhoto>> asdsd = io.reactivex.Observable.fromIterable(flickrPhotos).toList().toObservable().toFlowable(BackpressureStrategy.DROP);
+//                return Flowable.fromIterable(flickrPhotos).toList().toFlowable();
+//                Flowable<List<FlickrPhoto>> asd = Flowable.fromIterable(flickrPhotos).toList().toFlowable().cacheWithInitialCapacity(120);
+//                return Flowable.fromIterable(flickrPhotos).toList().toFlowable();
+                return asdsd;
+            }
+        });
+    }
+
+    public List<FlickrPhoto> getFlickFromDb() {
+        return flickrRoomRepo.getAllFlickerPhotosList();
+    }
+
+
+    private Flowable<List<FlickrPhoto>> getMergedFloFlickrPhotos() {
+        Flowable<List<FlickrPhoto>> networkListObservable = flickrNetworkRepository.getRecentFlowPhotos()
+                .concatMap(new Function<RecentPhotosResponse, Publisher<? extends List<FlickrPhoto>>>() {
                     @Override
-                    public void call(Timestamped<RecentPhotosResponse> recentPhotosResponse) {
-                        Log.d(CLASSNAME, "flickrApiRepository.getRecentPhotos().doOnNext() - Saving photos to disk - thread=" + Thread.currentThread().getName());
-                        flickrDiskRepository.savePhotos(recentPhotosResponse);
+                    public Publisher<? extends List<FlickrPhoto>> apply(RecentPhotosResponse recentPhotosResponse) throws Exception {
+                        List<FlickrPhoto> flickrPhotos = recentPhotosResponse.photos.photo;
+                        return Flowable.fromIterable(flickrPhotos).toList().toFlowable();
+                    }
+                });
+
+        return Flowable.mergeDelayError(
+                flickrRoomRepo.getAllFlickerPhotos(),
+                networkListObservable.doOnNext(new Consumer<List<FlickrPhoto>>() {
+                    @Override
+                    public void accept(List<FlickrPhoto> flickrPhotos) throws Exception {
+                        flickrRoomRepo.insert(flickrPhotos);
                     }
                 }).subscribeOn(Schedulers.io())
         );
     }
 
-    private Func1<Timestamped<RecentPhotosResponse>, Boolean> getRecentPhotosFilter(final ITimestampedView timestampedView) {
-        return new Func1<Timestamped<RecentPhotosResponse>, Boolean>() {
-            @Override
-            public Boolean call(Timestamped<RecentPhotosResponse> recentPhotosResponseTimestamped) {
 
-                StringBuilder logMessage = new StringBuilder("getMergedPhotos().filter() - Filtering results");
-                if (recentPhotosResponseTimestamped == null) {
-                    logMessage.append(", recentPhotosResponseTimestamped is null");
-                } else {
-                    logMessage.append(", timestamps=").append(recentPhotosResponseTimestamped.getTimestampMillis()).append(">").append(timestampedView.getViewDataTimestampMillis()).append("?");
-                }
-                logMessage.append(", thread=").append(Thread.currentThread().getName());
-                Log.d(CLASSNAME, logMessage.toString());
+    Maybe<List<FlickrPhoto>> getMergedMayBePhotos() {
+        Maybe<List<FlickrPhoto>> networkListObservable = flickrNetworkRepository.getMaybePhotos()
+                .observeOn(Schedulers.io())
+                .concatMap(new Function<RecentPhotosResponse, MaybeSource<? extends List<FlickrPhoto>>>() {
+                    @Override
+                    public MaybeSource<? extends List<FlickrPhoto>> apply(RecentPhotosResponse recentPhotosResponse) throws Exception {
+                        final List<FlickrPhoto> flickrPhotos = recentPhotosResponse.photos.photo;
+                        return Maybe.create(new MaybeOnSubscribe<List<FlickrPhoto>>() {
+                            @Override
+                            public void subscribe(MaybeEmitter<List<FlickrPhoto>> e) throws Exception {
+                                if (flickrPhotos == null) {
 
-                // filter it
-                // if result is null - ignore it
-                // if timestamp of new arrived (emission) data is less than timestamp of already displayed data — ignore it.
-                return recentPhotosResponseTimestamped != null
-                        && recentPhotosResponseTimestamped.getValue() != null
-                        && recentPhotosResponseTimestamped.getValue().photos != null
-                        && recentPhotosResponseTimestamped.getTimestampMillis() > timestampedView.getViewDataTimestampMillis();
-            }
-        };
+                                } else {
+                                    if (flickrPhotos.size() > 0)
+                                        e.onSuccess(flickrPhotos);
+                                }
+                            }
+                        });
+                    }
+                });
+
+        final Flowable<List<FlickrPhoto>> listFlowable = Maybe.mergeDelayError(flickrRoomRepo.getAll(), networkListObservable);
+        return listFlowable.singleElement();
     }
+
+
+    public Observable<List<FlickrPhoto>> getMergedObsPhotos() {
+
+        Observable<List<FlickrPhoto>> network = flickrNetworkRepository.getRecentPhotos()
+                .concatMap(new Function<RecentPhotosResponse, ObservableSource<? extends List<FlickrPhoto>>>() {
+                    @Override
+                    public ObservableSource<? extends List<FlickrPhoto>> apply(RecentPhotosResponse recentPhotosResponse) throws Exception {
+                        final List<FlickrPhoto> flickrPhotos = recentPhotosResponse.photos.photo;
+
+                        return Observable.create(new ObservableOnSubscribe<List<FlickrPhoto>>() {
+                            @Override
+                            public void subscribe(ObservableEmitter<List<FlickrPhoto>> e) throws Exception {
+                                if (e == null) {
+                                    return;
+                                }
+
+                                if (flickrPhotos == null) {
+                                    e.onError(new Throwable("No response"));
+                                } else {
+                                    if (flickrPhotos.size() > 0) {
+                                        e.onNext(flickrPhotos);
+                                        flickrRoomRepo.insert(flickrPhotos);
+                                    }
+                                }
+
+                            }
+                        });
+                    }
+                });
+
+        return Observable.mergeDelayError(network, flickrRoomRepo.getAllFlickerPhotos().toObservable());
+    }
+
+
 }

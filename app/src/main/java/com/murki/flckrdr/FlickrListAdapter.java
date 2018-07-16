@@ -2,28 +2,23 @@ package com.murki.flckrdr;
 
 import android.databinding.DataBindingUtil;
 import android.databinding.ViewDataBinding;
-import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.murki.flckrdr.model.FlickrPhoto;
 import com.murki.flckrdr.viewmodel.FlickrCardVM;
 
-import java.lang.reflect.Array;
-import java.util.ArrayList;
 import java.util.List;
-
-import rx.schedulers.Timestamped;
 
 public class FlickrListAdapter extends RecyclerView.Adapter<FlickrListAdapter.BindingHolder> {
 
     private static final String CLASSNAME = FlickrListAdapter.class.getCanonicalName();
 
-    private Timestamped<List<FlickrCardVM>> dataSet;
+    private List<FlickrPhoto> dataSet;
 
-    public FlickrListAdapter(Timestamped<List<FlickrCardVM>> dataSet) {
+    public FlickrListAdapter(List<FlickrPhoto> dataSet) {
         this.dataSet = dataSet;
     }
 
@@ -38,7 +33,7 @@ public class FlickrListAdapter extends RecyclerView.Adapter<FlickrListAdapter.Bi
 
     @Override
     public void onBindViewHolder(BindingHolder bindingHolder, int i) {
-        final FlickrCardVM itemVM = dataSet.getValue().get(i);
+        final FlickrPhoto itemVM = dataSet.get(i);
         bindingHolder.getBinding().setVariable(com.murki.flckrdr.BR.viewModel, itemVM);
         bindingHolder.getBinding().executePendingBindings();
     }
@@ -48,12 +43,8 @@ public class FlickrListAdapter extends RecyclerView.Adapter<FlickrListAdapter.Bi
         if (dataSet == null) {
             return 0;
         } else {
-            return dataSet.getValue().size();
+            return dataSet.size();
         }
-    }
-
-    public long getTimestampMillis() {
-        return dataSet.getTimestampMillis();
     }
 
     // Provide a reference to the views for each data item

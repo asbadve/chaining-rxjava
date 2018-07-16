@@ -12,33 +12,29 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-import com.fernandocejas.frodo.annotation.RxLogObservable;
+import com.murki.flckrdr.model.FlickrPhoto;
 import com.murki.flckrdr.repository.FlickrDomainService;
-import com.murki.flckrdr.viewmodel.FlickrCardVM;
+
+import org.reactivestreams.Subscription;
 
 import java.util.Collections;
 import java.util.List;
 
-import rx.Observable;
-import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.schedulers.Timestamped;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
-public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener, ITimestampedView {
+public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.OnRefreshListener {
 
     private static final String CLASSNAME = FlickrListFragment.class.getCanonicalName();
     private FlickrDomainService flickrDomainService;
     private RecyclerView recyclerView;
     private SwipeRefreshLayout swipeRefreshLayout;
     private FlickrListAdapter flickrListAdapter;
-    private Subscription flickrListSubscription;
-
-    @Override
-    public long getViewDataTimestampMillis() {
-        return flickrListAdapter == null ? 0 : flickrListAdapter.getTimestampMillis();
-    }
+    private CompositeDisposable compositeDisposable;
+    private Subscription subscription;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -60,7 +56,7 @@ public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.O
     public void onActivityCreated(@Nullable Bundle savedInstanceState) {
         super.onActivityCreated(savedInstanceState);
         Log.d(CLASSNAME, "onActivityCreated()");
-
+        compositeDisposable = new CompositeDisposable();
         flickrDomainService = new FlickrDomainService(getContext()); // TODO: Inject Singleton
         fetchFlickrItems();
     }
@@ -76,7 +72,11 @@ public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.O
     @Override
     public void onRefresh() {
         Log.d(CLASSNAME, "onRefresh()");
+        if (compositeDisposable != null) {
 
+        } else {
+            compositeDisposable = new CompositeDisposable();
+        }
         fetchFlickrItems();
     }
 
@@ -92,17 +92,93 @@ public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.O
         // use a linear layout manager
         recyclerView.setLayoutManager(new GridLayoutManager(getContext(), 2));
         // specify an adapter
-        recyclerView.setAdapter(flickrListAdapter = new FlickrListAdapter(new Timestamped<>(getViewDataTimestampMillis(), Collections.<FlickrCardVM>emptyList())));
+        recyclerView.setAdapter(flickrListAdapter = new FlickrListAdapter(Collections.<FlickrPhoto>emptyList()));
     }
 
     private void fetchFlickrItems() {
         isRefreshing(true);
-        unsubscribe();
-        Observable<Timestamped<List<FlickrCardVM>>> recentPhotosObservable = flickrDomainService
-                .getRecentPhotos(this)
-                .observeOn(AndroidSchedulers.mainThread(), true); // delayError = true
+//        unsubscribe();
+//        Observable<List<FlickrPhoto>> recentPhotosObservable = flickrDomainService
+//                .getRecentPhotos()
+//                .observeOn(AndroidSchedulers.mainThread(), true); // delayError = true
+//
+//        recentPhotosObservable.subscribe(new Observer<List<FlickrPhoto>>() {
+//            @Override
+//            public void onSubscribe(Disposable d) {
+//                if (compositeDisposable == null) {
+//                    compositeDisposable = new CompositeDisposable();
+//                }
+//                compositeDisposable.add(d);
+//            }
+//
+//            @Override
+//            public void onNext(List<FlickrPhoto> flickrCardVMS) {
+//                Log.d(CLASSNAME, "flickrRecentPhotosOnNext.call() - Displaying card VMs in Adapter");
+////            // refresh the list adapter
+//                recyclerView.swapAdapter(flickrListAdapter = new FlickrListAdapter(flickrCardVMS), false);
+//            }
+//
+//            @Override
+//            public void onError(Throwable throwable) {
+//                Log.e(CLASSNAME, "flickrRecentPhotosOnError.call() - ERROR", throwable);
+//                isRefreshing(false);
+//                Toast.makeText(getActivity(), "OnError=" + throwable.getMessage(), Toast.LENGTH_LONG).show();
+//            }
+//
+//            @Override
+//            public void onComplete() {
+//                Log.d(CLASSNAME, "flickrRecenPhotosOnComplete.call() - Data completed. Loading done.");
+//                isRefreshing(false);
+//            }
+//        });
 
-        flickrListSubscription = recentPhotosObservable.subscribe(flickrRecentPhotosOnNext, flickrRecentPhotosOnError, flickrRecenPhotosOnComplete);
+
+//        next(flickrDomainService.getFlickFromDb());
+        flickrDomainService.getMergedObsPhotos()
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<List<FlickrPhoto>>() {
+                    @Override
+                    public void onSubscribe(Disposable d) {
+                        compositeDisposable.add(d);
+                    }
+
+                    @Override
+                    public void onNext(List<FlickrPhoto> flickrPhotos) {
+                        next(flickrPhotos);
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        error(e);
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        complete();
+                    }
+                });
+
+
+//        complete();
+    }
+
+    private void complete() {
+        Log.d(CLASSNAME, "flickrRecenPhotosOnComplete.call() - Data completed. Loading done.");
+        isRefreshing(false);
+    }
+
+    private void error(Throwable throwable) {
+        Log.e(CLASSNAME, "flickrRecentPhotosOnError.call() - ERROR", throwable);
+        isRefreshing(false);
+        Toast.makeText(getActivity(), "OnError=" + throwable.getMessage(), Toast.LENGTH_LONG).show();
+    }
+
+    private void next(List<FlickrPhoto> flickrPhotos) {
+        Log.d(CLASSNAME, "flickrRecentPhotosOnNext.call() - Displaying card VMs in Adapter");
+//            // refresh the list adapter
+        recyclerView.swapAdapter(flickrListAdapter = new FlickrListAdapter(flickrPhotos), false);
+        isRefreshing(false);
     }
 
     private void isRefreshing(final boolean isRefreshing) {
@@ -114,36 +190,12 @@ public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.O
         });
     }
 
-    private final Action1<Timestamped<List<FlickrCardVM>>> flickrRecentPhotosOnNext = new Action1<Timestamped<List<FlickrCardVM>>>() {
-        @Override
-        public void call(Timestamped<List<FlickrCardVM>> flickrCardVMs) {
-            Log.d(CLASSNAME, "flickrRecentPhotosOnNext.call() - Displaying card VMs in Adapter");
-            // refresh the list adapter
-            recyclerView.swapAdapter(flickrListAdapter = new FlickrListAdapter(flickrCardVMs), false);
-        }
-    };
-
-    private final Action1<Throwable> flickrRecentPhotosOnError = new Action1<Throwable>() {
-        @Override
-        public void call(Throwable throwable) {
-            Log.e(CLASSNAME, "flickrRecentPhotosOnError.call() - ERROR", throwable);
-            isRefreshing(false);
-            Toast.makeText(getActivity(), "OnError=" + throwable.getMessage(), Toast.LENGTH_LONG).show();
-        }
-    };
-
-    private final Action0 flickrRecenPhotosOnComplete = new Action0() {
-        @Override
-        public void call() {
-            Log.d(CLASSNAME, "flickrRecenPhotosOnComplete.call() - Data completed. Loading done.");
-            isRefreshing(false);
-        }
-    };
-
     private void unsubscribe() {
-        if (flickrListSubscription != null) {
-            flickrListSubscription.unsubscribe();
-            flickrListSubscription = null;
+        if (compositeDisposable != null) {
+            compositeDisposable.clear();
+            compositeDisposable = null;
         }
+
+        subscription.cancel();
     }
 }
