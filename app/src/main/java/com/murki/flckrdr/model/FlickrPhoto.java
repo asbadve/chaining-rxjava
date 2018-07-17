@@ -19,6 +19,16 @@ public class FlickrPhoto {
     @ColumnInfo(name = "url_n")//
     public String imageUrl;
 
+    boolean isFav;
+
+    public boolean isFav() {
+        return isFav;
+    }
+
+    public void setFav(boolean fav) {
+        isFav = fav;
+    }
+
     @NonNull
     public String getId() {
         return id;
