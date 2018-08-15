@@ -17,7 +17,7 @@ public class FlickrPhoto {
     public String title;
     public String url_n;
 
-    boolean isFav;
+    public boolean isFav;
 
     public boolean isFav() {
         return isFav;

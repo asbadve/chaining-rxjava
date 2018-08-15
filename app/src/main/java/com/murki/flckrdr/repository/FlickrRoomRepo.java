@@ -1,15 +1,13 @@
 package com.murki.flckrdr.repository;
 
-import android.arch.persistence.db.SimpleSQLiteQuery;
 import android.arch.persistence.db.SupportSQLiteQuery;
-import android.arch.persistence.db.SupportSQLiteQueryBuilder;
 import android.arch.persistence.room.Dao;
 import android.arch.persistence.room.Insert;
 import android.arch.persistence.room.OnConflictStrategy;
 import android.arch.persistence.room.Query;
 import android.arch.persistence.room.RawQuery;
 import android.arch.persistence.room.Transaction;
-import android.database.sqlite.SQLiteQueryBuilder;
+import android.database.DatabaseUtils;
 import android.util.Log;
 
 import com.google.common.base.Optional;
@@ -58,7 +56,7 @@ public abstract class FlickrRoomRepo {
 
 
     @Transaction
-    public void partialUpdate(List<FlickrPhoto> flickrPhotos) {
+    public void partialUpdate(List<FlickrPhoto> flickrPhotos, final MyDatabase myDatabase) {
         Observable.fromIterable(flickrPhotos)
                 .subscribeOn(Schedulers.io())
                 .observeOn(Schedulers.io())
@@ -75,7 +73,11 @@ public abstract class FlickrRoomRepo {
                             if (!isPhotoPresentInDb(id)) {
                                 insertPhoto(flickrPhoto);
                             } else {
-//                                SupportSQLiteQuery supportSQLiteQuery= new SimpleSQLiteQuery("INSERT INTO FlickrPhoto values()");
+//                                String[] args =new String[]{String.valueOf(flickrPhoto.getTitle()), String.valueOf(flickrPhoto.getUrl_n()), String.valueOf(1), String.valueOf(flickrPhoto.getId())};
+//                                myDatabase.getOpenHelper().getWritableDatabase().execSQL("UPDATE FlickrPhoto set title  =':?',url_n='?',isFav='?' WHERE id='?'",args);
+                                String replace = flickrPhoto.getTitle().replaceAll("'", "\'");
+                                myDatabase.getOpenHelper().getWritableDatabase().execSQL("UPDATE FlickrPhoto set title = '" + replace + "',url_n='" + flickrPhoto.getUrl_n() + "',isFav='" + 1 + "' WHERE id='" + flickrPhoto.getId() + "'");
+//                                SupportSQLiteQuery supportSQLiteQuery = new SimpleSQLiteQuery("UPDATE FlickrPhoto set title = '?',url_n='?',isFav='?' WHERE id='?'", args);
 //                                SupportSQLiteQuery  supportSQLiteQuery1 = SupportSQLiteQueryBuilder.builder(FlickrPhoto.class.getSimpleName())
 //                                insertWithDetail(supportSQLiteQuery);
                             }

@@ -134,7 +134,7 @@ public class FlickrDomainService {
                                 } else {
                                     if (flickrPhotos.size() > 0) {
                                         e.onNext(flickrPhotos);
-                                        flickrRoomRepo.partialUpdate(flickrPhotos);
+                                        flickrRoomRepo.partialUpdate(flickrPhotos,myDatabase);
                                     }
                                 }
 
