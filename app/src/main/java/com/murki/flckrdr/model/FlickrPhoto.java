@@ -1,6 +1,5 @@
 package com.murki.flckrdr.model;
 
-import android.arch.persistence.room.ColumnInfo;
 import android.arch.persistence.room.Entity;
 import android.arch.persistence.room.PrimaryKey;
 import android.databinding.BindingAdapter;
@@ -16,8 +15,7 @@ public class FlickrPhoto {
     public String id;
 
     public String title;
-    @ColumnInfo(name = "url_n")//
-    public String imageUrl;
+    public String url_n;
 
     boolean isFav;
 
@@ -46,15 +44,15 @@ public class FlickrPhoto {
         this.title = title;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public String getUrl_n() {
+        return url_n;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setUrl_n(String url_n) {
+        this.url_n = url_n;
     }
 
-    @BindingAdapter({"bind:imageUrl"})
+    @BindingAdapter({"bind:url_n"})
     public static void loadImage(ImageView view, String url) {
         Picasso pic = Picasso.with(view.getContext());
 //        if (BuildConfig.DEBUG) {

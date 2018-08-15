@@ -32,7 +32,7 @@
                     android:layout_height="150dp"
                     android:scaleType="centerCrop"
                     android:background="@mipmap/ic_launcher"
-                    card_view:imageUrl="@{viewModel.ImageUrl}" />
+                    card_view:url_n="@{viewModel.url_n}" />
 
                 <TextView
                     android:id="@+id/info_text"

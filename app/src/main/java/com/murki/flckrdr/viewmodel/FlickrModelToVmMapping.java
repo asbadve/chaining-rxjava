@@ -21,7 +21,7 @@ public class FlickrModelToVmMapping implements Predicate<RecentPhotosResponse> {
         Log.d(CLASSNAME, "FlickrModelToVmMapping.call() - Response list size=" + photoList.size());
         List<FlickrCardVM> flickrCardVMs = new ArrayList<>(photoList.size());
         for (FlickrPhoto photo : photoList) {
-            flickrCardVMs.add(new FlickrCardVM(photo.title, photo.getImageUrl()));
+            flickrCardVMs.add(new FlickrCardVM(photo.title, photo.getUrl_n()));
         }
 
         if (flickrCardVMs.size() > 0) {

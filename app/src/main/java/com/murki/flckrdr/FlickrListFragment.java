@@ -175,6 +175,13 @@ public class FlickrListFragment extends Fragment implements SwipeRefreshLayout.O
     }
 
     private void next(List<FlickrPhoto> flickrPhotos) {
+        if (flickrPhotos == null) {
+            return;
+        }
+
+        if (flickrPhotos.size() <= 0) {
+            return;
+        }
         Log.d(CLASSNAME, "flickrRecentPhotosOnNext.call() - Displaying card VMs in Adapter");
 //            // refresh the list adapter
         recyclerView.swapAdapter(flickrListAdapter = new FlickrListAdapter(flickrPhotos), false);

@@ -1,12 +1,15 @@
 package com.murki.flckrdr.repository;
 
+import android.arch.persistence.db.SimpleSQLiteQuery;
 import android.arch.persistence.db.SupportSQLiteQuery;
+import android.arch.persistence.db.SupportSQLiteQueryBuilder;
 import android.arch.persistence.room.Dao;
 import android.arch.persistence.room.Insert;
 import android.arch.persistence.room.OnConflictStrategy;
 import android.arch.persistence.room.Query;
 import android.arch.persistence.room.RawQuery;
 import android.arch.persistence.room.Transaction;
+import android.database.sqlite.SQLiteQueryBuilder;
 import android.util.Log;
 
 import com.google.common.base.Optional;
@@ -44,11 +47,11 @@ public abstract class FlickrRoomRepo {
     @Insert()
     public abstract void insertPhoto(FlickrPhoto photo);
 
-//    @Query("INSERT INTO FlickrPhoto VALUES (:id,:title,:imageUrl)")
-//    public abstract void insertWithDetail(String id, String title, String imageUrl);
+//    @Query("INSERT INTO FlickrPhoto VALUES (:id,:title,:url_n)")
+//    public abstract void insertWithDetail(String id, String title, String url_n);
 
-//    @RawQuery()
-//    public abstract void insertWithDetail(SupportSQLiteQuery supportSQLiteQuery);
+    @RawQuery()
+    public abstract int insertWithDetail(SupportSQLiteQuery supportSQLiteQuery);
 
     @Query("SELECT * from FlickrPhoto where id=:id")
     public abstract boolean isPhotoPresentInDb(String id);
@@ -70,9 +73,11 @@ public abstract class FlickrRoomRepo {
                         if (flickrPhoto != null) {
                             final String id = flickrPhoto.getId();
                             if (!isPhotoPresentInDb(id)) {
-//                                insertWithDetail(id, flickrPhoto.getTitle(), flickrPhoto.getImageUrl());
-                            } else {
                                 insertPhoto(flickrPhoto);
+                            } else {
+//                                SupportSQLiteQuery supportSQLiteQuery= new SimpleSQLiteQuery("INSERT INTO FlickrPhoto values()");
+//                                SupportSQLiteQuery  supportSQLiteQuery1 = SupportSQLiteQueryBuilder.builder(FlickrPhoto.class.getSimpleName())
+//                                insertWithDetail(supportSQLiteQuery);
                             }
                         }
 

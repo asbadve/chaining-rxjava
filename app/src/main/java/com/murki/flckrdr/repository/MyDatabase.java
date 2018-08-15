@@ -10,7 +10,7 @@ import android.support.annotation.NonNull;
 
 import com.murki.flckrdr.model.FlickrPhoto;
 
-@Database(entities = {FlickrPhoto.class}, version = 2)
+@Database(entities = {FlickrPhoto.class}, version = 3)
 public abstract class MyDatabase extends RoomDatabase {
     public abstract FlickrRoomRepo flickrDao();
 
@@ -20,7 +20,8 @@ public abstract class MyDatabase extends RoomDatabase {
         if (INSTANCE == null) {
             INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                     MyDatabase.class, "FlickrDb.db")
-                    .addMigrations(MIGRATION_1_2)
+                    .fallbackToDestructiveMigration()
+                    .addMigrations(MIGRATION_1_3)
                     .build();
         }
         return INSTANCE;
@@ -28,6 +29,18 @@ public abstract class MyDatabase extends RoomDatabase {
 
 
     static final Migration MIGRATION_1_2 = new Migration(1, 2) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase database) {
+            // Since we didn't alter the table, there's nothing else to do here.
+
+            database.execSQL("ALTER TABLE FlickrPhoto "
+                    + "ADD COLUMN isFav boolean DEFAULT 1");
+
+
+        }
+    };
+
+    static final Migration MIGRATION_1_3 = new Migration(1, 3) {
         @Override
         public void migrate(@NonNull SupportSQLiteDatabase database) {
             // Since we didn't alter the table, there's nothing else to do here.

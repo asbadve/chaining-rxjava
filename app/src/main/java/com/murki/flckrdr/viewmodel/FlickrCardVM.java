@@ -23,7 +23,7 @@ public class FlickrCardVM {
         return imageUrl;
     }
 
-    @BindingAdapter({"bind:imageUrl"})
+    @BindingAdapter({"bind:url_n"})
     public static void loadImage(ImageView view, String url) {
         Picasso pic = Picasso.with(view.getContext());
 //        if (BuildConfig.DEBUG) {
